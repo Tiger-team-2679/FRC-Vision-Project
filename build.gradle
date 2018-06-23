@@ -1,0 +1,39 @@
+apply plugin: 'cpp' 
+
+def opencvhome = "C://opencv//build"
+
+def opencvinclude = opencvhome + "//include"
+def opencvstaticlibs = opencvhome + "//x86/vc12/staticlib"
+def opencvlibs = opencvhome + "//x86/vc12/lib"
+
+model 
+{
+    repositories {
+        libs(PrebuiltLibraries) {
+            core {
+                headers.srcDir opencvinclude
+
+                binaries.withType(StaticLibraryBinary) {
+                    staticLibraryFile = file("$opencvlibs/opencv_world300.lib")
+                }
+            }
+        }
+    }
+	
+	components {
+        main(NativeExecutableSpec) {
+            sources {
+                cpp {
+                    source {
+                        srcDirs "src/main/cpp", "lib"
+                        include "*.cpp"
+                    }
+                    exportedHeaders {
+                        srcDirs "src/main/include", "include"
+                    }
+                }
+				cpp.lib library: 'core', linkage: 'static'
+            }
+        }
+    }
+}
