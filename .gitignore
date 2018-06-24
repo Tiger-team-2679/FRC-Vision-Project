@@ -19,7 +19,6 @@ tmp/
 
 # Toast/GradleRIO
 run/
-gradle/
 .gradle/
 gradle/.launch/
 
