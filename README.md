@@ -1,5 +1,5 @@
 # Vision Project!  [![Build Status](https://www.travis-ci.com/Tiger-team-2679/FRC-Vision-Project.svg?token=wDJhDKLsn1gED5ZJib2F&branch=master)](https://www.travis-ci.com/Tiger-team-2679/FRC-Vision-Project) [![Language](https://img.shields.io/badge/Made%20%20With-C++-ff69b4.svg)](https://shields.io/)  [![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://shields.io/)  
-> "Why C++?" - said no one ever
+> "Why not C++?" - said no one ever
 
 This is the ongoin vision project of the tiger team #2679
 
