@@ -21,7 +21,7 @@ install:
   - echo "OpenCV installed."
   
   - export OPENCV_LIBS=/usr/local/lib
-  - export OPENCV_INCLUDE_DIRS=/usr/local/include/opencv
+  - export OPENCV_INCLUDE_DIR=/usr/local/include/opencv
   
   - echo "$(ls /usr/local/lib)"
   
