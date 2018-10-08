@@ -1,11 +1,15 @@
-#include "opencv2/opencv.hpp"
+#include <opencv2/core/core.hpp>
+#include <opencv2/opencv.hpp>
+#include <opencv2/videoio/videoio.hpp>
+#include <opencv2/highgui/highgui.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
+
 #include <iostream>
 #include <time.h>
 
 using namespace std;
-using namespace cv;
 
-void fastBlur(Mat image, int radius) {
+void fastBlur(cv::Mat image, int radius) {
 	if (radius<1) return;
 	int w = image.cols;
 	int h = image.rows;
@@ -99,10 +103,10 @@ int main(int, char**)
 {
 	clock_t time0;
     clock_t time1;
-	Mat frame;
-	Mat threshold;
+	cv::Mat frame;
+	cv::	Mat threshold;
 	
-    VideoCapture cap(0); // open the default camera
+    cv::VideoCapture cap(0); // open the default camera
 	if(!cap.isOpened())  // check if we succeeded
         return -1;
 	
@@ -111,11 +115,11 @@ int main(int, char**)
 		cap >> frame;
 		time0 = clock();  
 		fastBlur(frame, 1);
-		inRange(frame, Scalar(110,50,50), Scalar(130,255,255), threshold);
+		inRange(frame, cv::Scalar(110,50,50), cv::Scalar(130,255,255), threshold);
 		time1 = clock();  
 		printf("inRange time is: %d\n", time1-time0);
 		imshow("frame", frame);
-        if(waitKey(27) >= 0) break;
+        if(cv::waitKey(27) >= 0) break;
     }
     // the camera will be deinitialized automatically in VideoCapture destructor
     return 0;

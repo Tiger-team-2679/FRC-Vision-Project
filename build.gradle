@@ -1,60 +1,82 @@
+import static org.apache.tools.ant.taskdefs.condition.Os.*	
+
 apply plugin: 'cpp' 
 
 def opencvlibs = System.getenv("OPENCV_LIBS")
-def opencvinclude = System.getenv("OPENCV_INCLUDE_DIRS")
-
+def opencvinclude = System.getenv("OPENCV_INCLUDE_DIR")
 
 model 
 {
     repositories {
         libs(PrebuiltLibraries) {
-	    opencv {
-	    	headers.srcDir opencvinclude
-	    }
-            opencv_core {
-                binaries.withType(StaticLibraryBinary) {
-		    def libName = targetPlatform.operatingSystem.windows ? 'libopencv_core.lib' : 'libopencv_core.so'
-                    staticLibraryFile = file("$opencvlibs/$libName")
-                }
-            }
-	    opencv_highgui {
-                binaries.withType(StaticLibraryBinary) {
-		    def libName = targetPlatform.operatingSystem.windows ? 'libopencv_highgui.lib' : 'libopencv_highgui.so'
-                    staticLibraryFile = file("$opencvlibs/$libName")
-                }
-            }
-	    opencv_imgproc {
-                binaries.withType(StaticLibraryBinary) {
-		    def libName = targetPlatform.operatingSystem.windows ? 'libopencv_imgproc.lib' : 'libopencv_imgproc.so'
-                    staticLibraryFile = file("$opencvlibs/$libName")
-                }
-            }
-	    opencv_videoio {
-                binaries.withType(StaticLibraryBinary) {
-		    def libName = targetPlatform.operatingSystem.windows ? 'libopencv_videoio.lib' : 'libopencv_videoio.so'
-                    staticLibraryFile = file("$opencvlibs/$libName")
-                }
-            }
+			opencv {
+				headers.srcDir opencvinclude
+			}
+			opencv_core {
+				headers.srcDir opencvinclude
+				binaries.withType(StaticLibraryBinary) {
+					def libName = 'libopencv_core.so'
+					staticLibraryFile = file("$opencvlibs/$libName")
+				}
+			}
+			opencv_highgui {
+				headers.srcDir opencvinclude
+				binaries.withType(StaticLibraryBinary) {
+					def libName = 'libopencv_highgui.so'
+					staticLibraryFile = file("$opencvlibs/$libName")
+				}
+			}
+			opencv_imgproc {
+				headers.srcDir opencvinclude
+				binaries.withType(StaticLibraryBinary) {
+					def libName = 'libopencv_imgproc.so'
+					staticLibraryFile = file("$opencvlibs/$libName")
+				}
+			}
+			opencv_videoio {
+				headers.srcDir opencvinclude
+				binaries.withType(StaticLibraryBinary) {
+					def libName = 'libopencv_videoio.so'
+					staticLibraryFile = file("$opencvlibs/$libName")
+				}
+			}
+			opencv_world {
+				headers.srcDir opencvinclude
+				binaries.withType(StaticLibraryBinary) {
+					staticLibraryFile = file("$opencvlibs/opencv_world341.lib")
+				}
+			}
+        }
+    }
+	
+	platforms {
+        x64 {
+            architecture "x86_64"
         }
     }
 	
 	components {
         main(NativeExecutableSpec) {
+			targetPlatform "x64"	
             sources {
                 cpp {
-                    source {
-                        srcDirs "src/main/cpp", "lib"
+					if(isFamily(FAMILY_WINDOWS)){
+						lib library: "opencv_world", linkage: 'static'
+					}
+					else{
+						lib library: "opencv_core", linkage: 'static'
+						lib library: "opencv_highgui", linkage: 'static'
+						lib library: "opencv_videoio", linkage: 'static'
+						lib library: "opencv_imgproc", linkage: 'static'
+                    }
+					source {
+                        srcDirs "src/main/cpp"
                         include "*.cpp"
                     }
                     exportedHeaders {
-                        srcDirs "src/main/include", "include"
+                        srcDirs "src/main/include"
                     }
                 }
-		cpp.lib library: "opencv", linkage: "api"
-		cpp.lib library: "opencv_core", linkage: 'static'
-		cpp.lib library: "opencv_highgui", linkage: 'static'
-		cpp.lib library: "opencv_imgproc", linkage: 'static'
-		cpp.lib library: "opencv_videoio", linkage: 'static'
             }
         }
     }
