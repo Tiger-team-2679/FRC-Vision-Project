@@ -5,23 +5,21 @@ This is the ongoing computer vision project of Tiger Team #2679
 
 ## Table of contents
 * [Vision Project](#vision-project)
-* [How to work with Gradle](#how-to-work-with-gradle)
+* [How to deploy with Gradle](#how-to-deploy-with-gradle)
 * [Code Highlights](#code-highlights)
 * [License](#license)
 
-## How to Work With Gradle
+## How to Deploy With Gradle
 In order to start working with Gradle, you first have to make sure the project contains the following files:
  * gradle.build
  * gradlew
  * gradlew.bat
- * settings.gradle
 
-The basic usage of Gradle is accessed via the following commands:
-* Use the `build` task to build (or re-build) the project.
+We use gradle only for deploy the code into the jetson, by the following command:
+*
     ```
-    $ ./gradlew build
+    $ ./gradlew jetsonDeploy
     ```
-The compiled files can be found inside the "/build/exe/main" folder.
 
 for further information about Gradle, please take a look at [the Gradle documentation](https://docs.gradle.org/current/userguide/userguide.html).
 
@@ -32,4 +30,4 @@ for further information about Gradle, please take a look at [the Gradle document
 * It's fast
 
 ## License
-[MIT](LICENSE) - Tiger Team #2679 - 2018
+[MIT](LICENSE) - Tiger Team #2679 - 2019
