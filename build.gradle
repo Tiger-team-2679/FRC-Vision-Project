@@ -1,83 +1,57 @@
-import static org.apache.tools.ant.taskdefs.condition.Os.*	
+repositories {
+    mavenCentral()
+}
 
-apply plugin: 'cpp' 
+repositories { mavenCentral() }
 
-def opencvlibs = System.getenv("OPENCV_LIBS")
-def opencvinclude = System.getenv("OPENCV_INCLUDE_DIR")
+configurations { sshAntTask }
 
-model 
-{
-    repositories {
-        libs(PrebuiltLibraries) {
-			opencv {
-				headers.srcDir opencvinclude
-			}
-			opencv_core {
-				headers.srcDir opencvinclude
-				binaries.withType(StaticLibraryBinary) {
-					def libName = 'libopencv_core.so'
-					staticLibraryFile = file("$opencvlibs/$libName")
-				}
-			}
-			opencv_highgui {
-				headers.srcDir opencvinclude
-				binaries.withType(StaticLibraryBinary) {
-					def libName = 'libopencv_highgui.so'
-					staticLibraryFile = file("$opencvlibs/$libName")
-				}
-			}
-			opencv_imgproc {
-				headers.srcDir opencvinclude
-				binaries.withType(StaticLibraryBinary) {
-					def libName = 'libopencv_imgproc.so'
-					staticLibraryFile = file("$opencvlibs/$libName")
-				}
-			}
-			opencv_videoio {
-				headers.srcDir opencvinclude
-				binaries.withType(StaticLibraryBinary) {
-					def libName = 'libopencv_videoio.so'
-					staticLibraryFile = file("$opencvlibs/$libName")
-				}
-			}
-			opencv_world {
-				headers.srcDir opencvinclude
-				binaries.withType(StaticLibraryBinary) {
-					staticLibraryFile = file("$opencvlibs/opencv_world341.lib")
-				}
-			}
-        }
-    }
+dependencies {
+	sshAntTask 'org.apache.ant:ant-jsch:1.9.2'
+}
+
+def jetson_host = 'tegra-ubuntu.local'
+def jetson_user = 'nvidia'
+def jetson_password = 'nvidia'
+def jetson_workdir = '/home/nvidia/Desktop/frc/vision'
+def jetson_output = 'JetsonDeployOutput.txt'
 	
-	platforms {
-        x64 {
-            architecture "x86_64"
-        }
-    }
-	
-	components {
-        main(NativeExecutableSpec) {
-			targetPlatform "x64"	
-            sources {
-                cpp {
-					if(isFamily(FAMILY_WINDOWS)){
-						lib library: "opencv_world", linkage: 'static'
-					}
-					else{
-						lib library: "opencv_core", linkage: 'static'
-						lib library: "opencv_highgui", linkage: 'static'
-						lib library: "opencv_videoio", linkage: 'static'
-						lib library: "opencv_imgproc", linkage: 'static'
-                    }
-					source {
-                        srcDirs "src/main/cpp"
-                        include "*.cpp"
-                    }
-                    exportedHeaders {
-                        srcDirs "src/main/include"
-                    }
-                }
+
+task jetsonDeploy() {
+    doLast {
+
+        ant.taskdef(
+            name: 'ssh',
+            classname: 'org.apache.tools.ant.taskdefs.optional.ssh.SSHExec',
+            classpath: configurations.sshAntTask.asPath)
+
+        ant.ssh(
+            host: jetson_host,
+            username: jetson_user,
+            password: jetson_password,
+            trust: true,
+            verbose: true,
+            output: jetson_output,
+            command: "rm ${jetson_workdir} -r -f && mkdir ${jetson_workdir}"
+        )
+
+        ant.scp(remoteTodir: "${jetson_user}:${jetson_password}@${jetson_host}:${jetson_workdir}",
+                trust: true,
+                verbose: true,
+                failonerror: true) {
+            fileset(dir: "vision") {
+                include(name: '**/**')
             }
         }
+
+        ant.ssh(
+            host: jetson_host,
+            username: jetson_user,
+            password: jetson_password,
+            trust: true,
+            verbose: true,
+            output: jetson_output,
+            command: "cd ${jetson_workdir} && mkdir build && cd build && cmake ../ && make"
+        )
     }
 }
