@@ -1,127 +1,75 @@
-#include <opencv2/core/core.hpp>
-#include <opencv2/opencv.hpp>
-#include <opencv2/videoio/videoio.hpp>
-#include <opencv2/highgui/highgui.hpp>
-#include <opencv2/imgproc/imgproc.hpp>
-
 #include <iostream>
-#include <time.h>
+#include <string>
+#include <vector>
 
-using namespace std;
+#include "opencv2/imgproc.hpp"
+#include "opencv2/highgui.hpp"
 
-void fastBlur(cv::Mat image, int radius) {
-	if (radius<1) return;
-	int w = image.cols;
-	int h = image.rows;
-	unsigned char * pix = (unsigned char*)(image.data);
-	int wm=w-1;
-	int hm=h-1;
-	int wh=w*h;
-	int div=radius+radius+1;
-	unsigned char *r=new unsigned char[wh];
-	unsigned char *g=new unsigned char[wh];
-	unsigned char *b=new unsigned char[wh];
-	int rsum,gsum,bsum,x,y,i,p,p1,p2,yp,yi,yw;
-	int *vMIN = new int[MAX(w,h)];
-	int *vMAX = new int[MAX(w,h)];
+#include "CameraFetcher.h"
 
-	unsigned char *dv=new unsigned char[256*div];
-	for (i=0;i<256*div;i++) dv[i]=(i/div);
+#define FPS 30
+#define HEIGHT 640
+#define WIDTH 480
 
-	yw=yi=0;
+#define CARGO_H_LOW 0
+#define CARGO_S_LOW 0
+#define CARGO_V_LOW 0
+#define CARGO_H_HIGH 70
+#define CARGO_S_HIGH 255
+#define CARGO_V_HIGH 255
 
-	for (y=0;y<h;y++){
-		rsum=gsum=bsum=0;
-		for(i=-radius;i<=radius;i++){
-			p = (yi + MIN(wm, MAX(i,0))) * 3;
-			rsum += pix[p];
-			gsum += pix[p+1];
-			bsum += pix[p+2];
-		}
-		for (x=0;x<w;x++){
-
-			r[yi]=dv[rsum];
-			g[yi]=dv[gsum];
-			b[yi]=dv[bsum];
-
-			if(y==0){
-				vMIN[x]=MIN(x+radius+1,wm);
-				vMAX[x]=MAX(x-radius,0);
-			}
-			p1 = (yw+vMIN[x])*3;
-			p2 = (yw+vMAX[x])*3;
-
-			rsum += pix[p1] - pix[p2];
-			gsum += pix[p1+1] - pix[p2+1];
-			bsum += pix[p1+2] - pix[p2+2];
-
-			yi++;
-		}
-		yw+=w;
-	}
-
-	for (x=0;x<w;x++){
-		rsum=gsum=bsum=0;
-		yp=-radius*w;
-		for(i=-radius;i<=radius;i++){
-			yi=MAX(0,yp)+x;
-			rsum+=r[yi];
-			gsum+=g[yi];
-			bsum+=b[yi];
-			yp+=w;
-		}
-		yi=x;
-		for (y=0;y<h;y++){
-			pix[yi*3] = dv[rsum];
-			pix[yi*3 + 1] = dv[gsum];
-			pix[yi*3 + 2] = dv[bsum];
-			if(x==0){
-				vMIN[y]=MIN(y+radius+1,hm)*w;
-				vMAX[y]=MAX(y-radius,0)*w;
-			}
-			p1=x+vMIN[y];
-			p2=x+vMAX[y];
-
-			rsum+=r[p1]-r[p2];
-			gsum+=g[p1]-g[p2];
-			bsum+=b[p1]-b[p2];
-
-			yi+=w;
-		}	
-	}
-
-	delete r;
-	delete g;
-	delete b;
-
-	delete vMIN;
-	delete vMAX;
-	delete dv;
+std::string getGstreamerPipe(int fps, int width, int height){
+    return "nvcamerasrc fpsRange='" + std::to_string(fps) + " " + std::to_string(fps) + "' ! video/x-raw(memory:NVMM)" \
+            ", width=(int)" + std::to_string(width) + \
+            ", height=(int)" + std::to_string(height) + ",format=(string)I420, framerate=(fraction)FPS/1 !" \
+            " nvvidconv flip-method=0 ! video/x-raw, format=(string)BGRx ! videoconvert ! video/x-raw," \
+            " format=(string)BGR ! appsink ";
 }
 
-int main(int, char**)
-{
-	clock_t time0;
-    clock_t time1;
-	cv::Mat frame;
-	cv::	Mat threshold;
-	
-    cv::VideoCapture cap(0); // open the default camera
-	if(!cap.isOpened())  // check if we succeeded
+void filterCargo(cv::Mat * frame){
+    cv::cvtColor(*frame, *frame, cv::COLOR_BGR2HSV,0);
+    cv::inRange(*frame,cv::Scalar(CARGO_H_LOW,CARGO_S_LOW,CARGO_V_LOW),
+                cv::Scalar(CARGO_H_HIGH,CARGO_S_HIGH,CARGO_V_HIGH), *frame);
+}
+
+std::vector<cv::Point> * getCargoContour(){
+    return nullptr;
+}
+
+int main() {
+    std::string pipe_args = getGstreamerPipe(FPS, HEIGHT, WIDTH);
+    cv::VideoCapture cap(0);
+
+    if(!cap.isOpened()) {
+        std::cerr << "[ERROR] Can't create gstreamer reader." << std::endl;
         return -1;
-	
-    while(1)
-    {
-		cap >> frame;
-		time0 = clock();  
-		fastBlur(frame, 1);
-		inRange(frame, cv::Scalar(110,50,50), cv::Scalar(130,255,255), threshold);
-		time1 = clock();  
-		printf("inRange time is: %d\n", time1-time0);
-		imshow("frame", frame);
-        if(cv::waitKey(27) >= 0) break;
     }
-    // the camera will be deinitialized automatically in VideoCapture destructor
-    return 0;
+
+    CameraFetcher cameraFetcher(&cap);
+    cameraFetcher.start();
+
+    Frame * frame;
+
+    clock_t time0;
+    clock_t time1;
+
+    while (true) {
+        time0 = clock();
+        cameraFetcher.refresh_frame(&frame);
+        if (!frame->mat.empty() && frame->lastFetcher != std::this_thread::get_id()) {
+            filterCargo(&frame->mat);
+        }
+        time1 = clock();
+        printf("inRange time is: %d\n", time1-time0); // for debugging
+        if(!frame->mat.empty() && frame->lastFetcher != std::this_thread::get_id()){
+            cv::imshow("filter", frame->mat);
+        }
+        int c = cv::waitKey(10);
+        if(c == 27){
+            break;
+        }
+    }
+    cameraFetcher.stop();
+    cap.release();
 }
 
