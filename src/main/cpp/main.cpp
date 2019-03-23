@@ -1,6 +1,7 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include "networking/Server.h"
 
 #include "opencv2/imgproc.hpp"
 #include "opencv2/highgui.hpp"
