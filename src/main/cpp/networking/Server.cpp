@@ -58,3 +58,9 @@ void Server::sendMessage(std::string message) {
     send(this->_clientSocket, message.c_str(), static_cast<int>(message.length()), 0);
 }
 
+Command Server::recvMessage() {
+    char buf[4];
+    recv(this->_clientSocket, buf, sizeof(buf), 0);
+    return Command {buf[0] == VALIDATION_CHAR,buf[1],buf[3]};
+}
+

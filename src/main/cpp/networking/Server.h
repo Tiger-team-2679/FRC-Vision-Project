@@ -19,19 +19,28 @@
 #define SINGLE_RETURN_METHOD 'o'
 #define NO_RETURN_METHOD 'n'
 
+#define VALIDATION_CHAR '~'
+
+typedef struct Command{
+    bool is_valid;
+    char target;
+    char method;
+} Command;
+
 /**
  * an incoming message will look like this:
- *  "<TARGET CODE>;<RETURN_METHOD>"
+ *  "<VALIDATION_CODE>;<TARGET CODE>;<RETURN_METHOD>"
  *  each parameter should be one char
  */
 
-#define GET_INCOMING_TARGET_CODE(message) message[2]
-#define GET_INCOMING_RETURN_METHOD(message) message[2]
-
 /**
  * an outgoing message will look like this:
- *  "<TARGET CODE>;<DISTANCE>;<ANGLE>"
+ *  "<VALIDATION_CODE>;<TARGET CODE>;<DISTANCE>;<ANGLE>"
  *  target code should be char, all other are numbers
+ */
+
+/**
+ * the validation code in both is just a stupid char to tell if a mmessage has began
  */
 
 class Server {
@@ -41,6 +50,7 @@ public:
     void start();
     void waitForClient();
     void sendMessage(std::string message);
+    Command recvMessage();
 private:
     unsigned short _port;
     SOCKET _serverSocket;

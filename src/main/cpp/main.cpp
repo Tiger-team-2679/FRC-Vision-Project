@@ -1,6 +1,7 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <condition_variable>
 #include "networking/Server.h"
 
 #include "opencv2/imgproc.hpp"
@@ -8,6 +9,8 @@
 
 #include "CameraFetcher.h"
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wmissing-noreturn"
 #define FPS 30
 #define HEIGHT 640
 #define WIDTH 480
@@ -33,16 +36,61 @@ void filterCargo(cv::Mat * frame){
                 cv::Scalar(CARGO_H_HIGH,CARGO_S_HIGH,CARGO_V_HIGH), *frame);
 }
 
-std::vector<cv::Point> * getCargoContour(){
-    return nullptr;
+std::thread processingThread;
+char currentTarget = NULL_TARGET_CODE;
+char currentMethod = NO_RETURN_METHOD;
+char isRunning = false;
+
+int process(CameraFetcher & cameraFetcher, Frame ** frame){
+    cameraFetcher.refresh_frame(frame);
+    if((*frame)->mat.empty() || (*frame)->lastFetcher == std::this_thread::get_id()){
+        return 0;
+    }
+    filterCargo(&(*frame)->mat);
+    return  1;
+}
+
+void processLogic(CameraFetcher & cameraFetcher, Frame ** frame){
+    while(isRunning){
+        if(currentMethod == INFINITE_RETURN_METHOD){
+            process(cameraFetcher, frame);
+            // TODO send data
+        }
+        else if(currentMethod == SINGLE_RETURN_METHOD){
+            while(!process(cameraFetcher, frame)){};
+            // TODO send data
+            isRunning = false;
+            break;
+        } else{
+            std::cerr << "Processing Error: invalid process method, doing nothing." << std::endl;
+            isRunning = false;
+            break;
+        }
+    }
+}
+
+void startProcessLogic(CameraFetcher & cameraFetcher, Frame ** frame){
+    isRunning = true;
+    processingThread = std::thread(processLogic, std::ref(cameraFetcher), frame);
+}
+
+void stopProcessLogic(){
+    isRunning = false;
+    if(processingThread.joinable()){
+        processingThread.join();
+    }
 }
 
 int main() {
+    Server server(2679);
+    server.start();
+    server.waitForClient();
+
     std::string pipe_args = getGstreamerPipe(FPS, HEIGHT, WIDTH);
     cv::VideoCapture cap(0);
 
     if(!cap.isOpened()) {
-        std::cerr << "[ERROR] Can't create gstreamer reader." << std::endl;
+        std::cerr << "Gstreamer Error: Can't create gstreamer reader." << std::endl;
         return -1;
     }
 
@@ -51,26 +99,22 @@ int main() {
 
     Frame * frame;
 
-    clock_t time0;
-    clock_t time1;
-
     while (true) {
-        time0 = clock();
-        cameraFetcher.refresh_frame(&frame);
-        if (!frame->mat.empty() && frame->lastFetcher != std::this_thread::get_id()) {
-            filterCargo(&frame->mat);
-        }
-        time1 = clock();
-        printf("inRange time is: %d\n", time1-time0); // for debugging
-        if(!frame->mat.empty() && frame->lastFetcher != std::this_thread::get_id()){
-            cv::imshow("filter", frame->mat);
-        }
-        int c = cv::waitKey(10);
-        if(c == 27){
-            break;
+        Command command = server.recvMessage();
+        if(command.is_valid) {
+            currentTarget = command.target;
+            currentMethod = command.method;
+            if (!isRunning) {
+                stopProcessLogic();
+                startProcessLogic(cameraFetcher, &frame);
+            }
         }
     }
+
+    stopProcessLogic();
     cameraFetcher.stop();
     cap.release();
 }
 
+
+#pragma clang diagnostic pop
