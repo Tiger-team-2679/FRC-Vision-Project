@@ -3,10 +3,6 @@
 
 #define PROCESS_ARGUMENT "-p"
 
-void test(){
-    printf("test is working!!!");
-}
-
 void procMon(int argc, char *argv[]) {
     std::string program_name = argv[0]; // get exe
     std::string command = program_name + " " + PROCESS_ARGUMENT;
