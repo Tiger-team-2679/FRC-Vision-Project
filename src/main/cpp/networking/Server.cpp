@@ -14,12 +14,19 @@ Server::Server(unsigned short port) {
 }
 
 Server::~Server() {
+    this->_running = false;
+    closeSocket(this->_serverSocket);
+    closeSocket(this->_clientSocket);
     #ifdef _WIN32
         WSACleanup();
     #endif
+        if(this->_clientAcceptorThread.joinable()){
+            this->_clientAcceptorThread.detach();
+        }
 }
 
 void Server::start() {
+    this->_running = true;
     struct sockaddr_in serv_addr {};
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_addr.s_addr = INADDR_ANY;
@@ -27,18 +34,24 @@ void Server::start() {
     if (bind(this->_serverSocket, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
         throw std::runtime_error("Networking Error: server socket binding failed");
     }
+    this->_clientAcceptorThread = std::thread(&Server::acceptClients, this);
 }
 
-void Server::waitForClient() {
-    struct sockaddr_in cli_addr {};
-    socklen_t clilen = sizeof(cli_addr);
-    printf("listening for clients\n");
-    listen(this->_serverSocket,5);
-    this->_clientSocket = accept(this->_serverSocket,
-                       (struct sockaddr *) &cli_addr, &clilen);
-    printf("client found\n");
-    if (!IS_SOCKET_VALID(this->_clientSocket)) {
-        throw std::runtime_error("Networking Error: client socket acceptance failed");
+void Server::acceptClients() {
+    while(this->_running) {
+        struct sockaddr_in cli_addr{};
+        socklen_t clilen = sizeof(cli_addr);
+        listen(this->_serverSocket, 5);
+        SOCKET temp = accept(this->_serverSocket,
+                                     (struct sockaddr *) &cli_addr, &clilen);
+        if(IS_SOCKET_VALID(this->_clientSocket)){
+            this->closeSocket(this->_clientSocket);
+        }
+        this->_clientSocket = temp;
+        if (!IS_SOCKET_VALID(this->_clientSocket)) {
+            throw std::runtime_error("Networking Error: client socket acceptance failed");
+        }
+        printf("client found\n");
     }
 }
 
@@ -55,12 +68,14 @@ int Server::closeSocket(SOCKET sock) {
 }
 
 void Server::sendMessage(std::string message) {
-    send(this->_clientSocket, message.c_str(), static_cast<int>(message.length()), 0);
+    if(send(this->_clientSocket, message.c_str(), static_cast<int>(message.length()), 0) == SOCKET_ERROR){
+        throw std::runtime_error("Networking Error: sending data failed");
+    }
 }
 
 Command Server::recvMessage() {
-    char buf[4];
+    char buf[3];
     recv(this->_clientSocket, buf, sizeof(buf), 0);
-    return Command {buf[0] == VALIDATION_CHAR,buf[1],buf[3]};
+    return Command {buf[0] == VALIDATION_CHAR,buf[1],buf[2]};
 }
 
